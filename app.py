@@ -1,60 +1,65 @@
 from flask import Flask, request, jsonify
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
+from youtube_transcript_api.proxies import WebshareProxyConfig
 from urllib.parse import urlparse, parse_qs
-import re
-
+import os, re
 
 app = Flask(__name__)
 
+# Extract video ID
 def extract_video_id_from_url(url):
-    """Extract YouTube video ID from a given URL."""
     try:
-        parsed_url = urlparse(url)
-        if parsed_url.hostname in ["www.youtube.com", "youtube.com"]:
-            return parse_qs(parsed_url.query).get("v", [None])[0]
-        elif parsed_url.hostname == "youtu.be":
-            return parsed_url.path.lstrip("/")
+        parsed = urlparse(url)
+        if parsed.hostname in ["www.youtube.com", "youtube.com"]:
+            return parse_qs(parsed.query).get("v", [None])[0]
+        elif parsed.hostname == "youtu.be":
+            return parsed.path.lstrip("/")
     except:
         return None
+
+# Text cleanup
+def clean_text(text):
+    text = text.replace("\n", " ").replace("\\", "")
+    return re.sub(r"[^\x00-\x7F]+", "", text)
+
+# Proxy credentials (use env vars in production!)
+PROXY_USER = os.getenv("PROXY_USERNAME")
+PROXY_PASS = os.getenv("PROXY_PASSWORD")
+
+# Initialize proxy-enabled API client
+ytt_api = YouTubeTranscriptApi(
+    proxy_config=WebshareProxyConfig(
+        proxy_username=PROXY_USER,
+        proxy_password=PROXY_PASS
+    )
+)
 
 @app.route("/api/transcript", methods=["GET"])
 def get_transcript():
     video_id = request.args.get("videoId")
     url = request.args.get("url")
     lang = request.args.get("lang", "en")
-    flat_text = request.args.get("flat_text", "false").lower() == "true"
+    flat_text = request.args.get("flat_text", "").lower() == "true"
 
     if not video_id and not url:
         return jsonify({"success": False, "error": "YouTube video ID or URL is required"}), 200
 
-    if not video_id and url:
+    if not video_id:
         video_id = extract_video_id_from_url(url)
         if not video_id:
             return jsonify({"success": False, "error": "Invalid YouTube video URL"}), 200
 
-    supported_langs = ["en", "cn", "ok"]
-    if lang not in supported_langs:
+    if lang not in ["en", "cn", "ok"]:
         lang = "en"
 
     try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=[lang])
-
+        transcript = ytt_api.get_transcript(video_id, languages=[lang])
 
         if flat_text:
-            # Join text, remove newlines, strip non-ASCII characters
-            raw_text = " ".join(item["text"].replace("\n", " ") for item in transcript)
-            # Remove non-ASCII characters like \u2026, \u2014, etc.
-            clean_text = re.sub(r"[^\x00-\x7F]+", "", raw_text)
-            return jsonify({"success": True, "transcript": clean_text})
+            raw = " ".join(clean_text(item["text"]) for item in transcript)
+            return jsonify({"success": True, "transcript": raw})
 
-
-        def clean_text(text):
-            text = text.replace("\n", " ")          # Remove newlines
-            text = text.replace("\\", "")           # Remove backslashes
-            text = re.sub(r"[^\x00-\x7F]+", "", text)  # Remove non-ASCII chars
-            return text
-
-        formatted_transcript = [
+        formatted = [
             {
                 "text": clean_text(item["text"]),
                 "duration": round(item["duration"], 2),
@@ -63,7 +68,7 @@ def get_transcript():
             }
             for item in transcript
         ]
-        return jsonify({"success": True, "transcript": formatted_transcript})
+        return jsonify({"success": True, "transcript": formatted})
 
     except (TranscriptsDisabled, NoTranscriptFound):
         return jsonify({"success": False, "error": "Failed to fetch transcript"}), 200
