@@ -23,8 +23,8 @@ def clean_text(text):
     return re.sub(r"[^\x00-\x7F]+", "", text)
 
 # Proxy credentials (use env vars in production!)
-PROXY_USER = os.getenv("PROXY_USERNAME")
-PROXY_PASS = os.getenv("PROXY_PASSWORD")
+PROXY_USER = os.getenv("PROXY_USERNAME", "sbotnpxp-1")
+PROXY_PASS = os.getenv("PROXY_PASSWORD", "k4curnl28y8z")
 
 # Initialize proxy-enabled API client
 ytt_api = YouTubeTranscriptApi(
