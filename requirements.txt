@@ -1,2 +1,4 @@
-flask==3.0.3
+flask
+python-dotenv
+requests
 youtube-transcript-api
