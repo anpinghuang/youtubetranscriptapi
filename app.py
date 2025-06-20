@@ -90,7 +90,7 @@ def get_transcript():
         return jsonify({"success": False, "error": "YouTube video ID or URL is required"}), 200
 
     try:
-        transcript = ytt_api.get_transcript(video_id, languages=[lang])
+        transcript = ytt_api.get_transcript(video_id, languages=[lang], proxies=proxies)
         logger.info("Transcript found with %d segments", len(transcript))
 
         if flat_text:
