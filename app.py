@@ -113,8 +113,8 @@ def get_transcript():
         ]
         return jsonify({
             "success": True,
-            "proxy_ip": proxy_ip,
-            "server_ip": server_ip,
+            # "proxy_ip": proxy_ip,
+            # "server_ip": server_ip,
             "transcript": structured_output
         })
 
