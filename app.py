@@ -116,3 +116,7 @@ def get_transcript():
         return jsonify({"success": False, "error": str(e)}), 200
 
 # Note: No debug=True here. Vercel/Gunicorn should launch the app.
+
+if __name__ == "__main__":
+    logger.info("Starting Flask development server on http://0.0.0.0:5000")
+    app.run(host="0.0.0.0", port=5000)
